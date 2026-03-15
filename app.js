@@ -685,6 +685,90 @@ function dlCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
+// ── Backup / Restore ──────────────────────────────────────────────
+
+async function exportBackup() {
+  const [products, lots] = await Promise.all([DB.getAllProducts(), DB.getAllLots()]);
+  const backup = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    products,
+    lots
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const date = new Date().toISOString().split('T')[0];
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `stockcontrol-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Backup exportado: ${products.length} productos, ${lots.length} lotes`, 'success');
+}
+
+function importBackup() {
+  $('inp-backup-file').value = ''; // reset so same file can be picked again
+  $('inp-backup-file').click();
+}
+
+async function processBackupFile(file) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    if (!data.products || !data.lots || !Array.isArray(data.products) || !Array.isArray(data.lots)) {
+      toast('Archivo inválido — no es un backup de StockControl', 'error');
+      return;
+    }
+
+    const pCount = data.products.length;
+    const lCount = data.lots.length;
+
+    const confirmed = confirm(
+      `¿Restaurar backup?\n\n` +
+      `📦 ${pCount} productos\n` +
+      `📋 ${lCount} lotes\n` +
+      `📅 Exportado: ${data.exportedAt ? fmtDate(data.exportedAt) : '—'}\n\n` +
+      `⚠️ Esto REEMPLAZA todos los datos actuales. Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    // Clear existing data and re-import
+    await restoreFromBackup(data.products, data.lots);
+    toast(`Backup restaurado: ${pCount} productos, ${lCount} lotes`, 'success');
+    loadInventory();
+    loadReports();
+
+  } catch(e) {
+    toast('Error al leer el archivo: ' + e.message, 'error');
+  }
+}
+
+async function restoreFromBackup(products, lots) {
+  return new Promise((resolve, reject) => {
+    // Open DB and clear both stores, then re-insert
+    const req = indexedDB.open('stockcontrol_v2', 1);
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction(['products', 'lots'], 'readwrite');
+      const pStore = tx.objectStore('products');
+      const lStore = tx.objectStore('lots');
+
+      pStore.clear();
+      lStore.clear();
+
+      products.forEach(p => pStore.put(p));
+      lots.forEach(l => lStore.put(l));
+
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
+    };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
 // ── Boot ──────────────────────────────────────────────────────────
 
 function startApp() {
@@ -706,6 +790,11 @@ function startApp() {
   // Exports
   $('btn-exp-csv').addEventListener('click', exportFullCSV);
   $('btn-full-csv').addEventListener('click', exportFullCSV);
+
+  // Backup / Restore
+  $('btn-backup-export').addEventListener('click', exportBackup);
+  $('btn-backup-import').addEventListener('click', importBackup);
+  $('inp-backup-file').addEventListener('change', e => processBackupFile(e.target.files[0]));
 
   // Logout
   $('btn-logout-nav').addEventListener('click', () => {

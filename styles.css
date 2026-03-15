@@ -107,8 +107,9 @@ body {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: .875rem 1rem;
-  position: sticky; top: 0; z-index: 50;
+  position: sticky; top: 0; z-index: 60;
   display: flex; align-items: center; gap: .75rem;
+  will-change: transform;
 }
 .header-title { flex: 1; }
 .section-header h2 { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
@@ -343,8 +344,9 @@ body {
   padding: .75rem .875rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  position: sticky; top: 51px; z-index: 40;
+  position: sticky; top: 51px; z-index: 55;
   display: flex; gap: 8px;
+  will-change: transform;
 }
 .search-wrap input { margin: 0; flex: 1; font-size: 15px; padding: 10px 14px; }
 .search-wrap select { margin: 0; font-size: 14px; padding: 10px 12px; -webkit-appearance: none; max-width: 130px; }
@@ -357,7 +359,8 @@ body {
   border-bottom: 1px solid var(--border);
   overflow-x: auto; -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  position: sticky; top: 101px; z-index: 39;
+  position: sticky; top: 51px; z-index: 55;
+  will-change: transform;
 }
 .chips-wrap::-webkit-scrollbar { display: none; }
 .chip {
@@ -542,4 +545,15 @@ input::placeholder { color: var(--text3); }
   .main { max-width: 480px; margin: 0 auto; }
   .bottom-nav { max-width: 480px; left: 50%; transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
   #toast-container { max-width: 480px; left: 50%; transform: translateX(-50%); right: auto; width: calc(100% - 1.75rem); }
+}
+
+/* ── STACKING FIX — contenido scrolleable siempre debajo de sticky ── */
+.page-body {
+  isolation: isolate;
+  position: relative;
+  z-index: 1;
+}
+.card, .product-row, .lot-row, .critical-row, .rep-row {
+  position: relative;
+  z-index: 1;
 }
